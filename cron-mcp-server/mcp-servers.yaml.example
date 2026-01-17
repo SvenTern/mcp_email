@@ -1,0 +1,70 @@
+# ClaudeCron MCP Servers Configuration Example
+# Copy this file to mcp-servers.yaml and customize
+
+# List of MCP servers that will be available for subagent tasks
+servers:
+  # Email server for sending/receiving emails
+  - name: email
+    url: https://mcp.svsfinpro.ru/email/mcp
+    transport: http
+    description: Email integration (IMAP/SMTP)
+    # auth_type: bearer  # Optional: none, bearer, api_key
+    # auth_token: your-token-here  # Required if auth_type is set
+
+  # Bitrix24 CRM integration
+  - name: bitrix
+    url: https://mcp.svsfinpro.ru/bitrix/mcp
+    transport: http
+    description: Bitrix24 CRM integration
+
+  # Telegram bot integration
+  - name: telegram
+    url: https://mcp.svsfinpro.ru/telegram/mcp
+    transport: http
+    description: Telegram bot for notifications
+
+  # GitHub integration
+  - name: github
+    url: https://mcp.svsfinpro.ru/github/mcp
+    transport: http
+    description: GitHub integration
+
+  # 1C ITS integration
+  - name: its
+    url: https://mcp.svsfinpro.ru/its/mcp
+    transport: http
+    description: 1C ITS integration
+
+  # News collecting integration
+  - name: news
+    url: https://mcp.svsfinpro.ru/news/mcp
+    transport: http
+    description: News collection service
+
+  # Place history information
+  - name: place
+    url: https://mcp.svsfinpro.ru/place/mcp
+    transport: http
+    description: Place history information
+
+  # YouTube integration
+  - name: youtube
+    url: https://mcp.svsfinpro.ru/youtube/mcp
+    transport: http
+    description: YouTube integration     
+
+
+# Server groups for common task types
+# groups:
+#   - name: crm-reporting
+#     description: Servers for CRM reporting tasks
+#     server_ids:
+#       - bitrix
+#       - email
+#       - sheets
+#
+#   - name: notifications
+#     description: Servers for sending notifications
+#     server_ids:
+#       - email
+#       - telegram

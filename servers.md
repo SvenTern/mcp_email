@@ -243,6 +243,166 @@ curl -X POST "https://mcp.svsfinpro.ru/bitrix/mcp" \
 
 ---
 
+## ClaudeCron MCP Server (Streamable HTTP)
+
+### Статус
+🚧 **Готов к развертыванию** (v2.0.0)
+
+### Информация
+- **Версия**: 2.0.0
+- **Протокол**: MCP 2025-11-25 (Streamable HTTP)
+- **Docker контейнер**: `cron-mcp-server`
+- **Порт**: 3010
+- **Директория**: `/opt/cron-mcp-server`
+
+### Возможности
+
+**Subagent Modes:**
+- **Mode A (MCP Client Hub)**: Прямые API вызовы через httpx к MCP серверам
+- **Mode B (Claude Code CLI)**: Запуск Claude Code CLI как subprocess
+- **Auto**: Автоматический выбор режима на основе параметров задачи
+
+### Доступ
+
+| Endpoint | URL |
+|----------|-----|
+| Health | `https://mcp.svsfinpro.ru/cron/health` |
+| Info | `https://mcp.svsfinpro.ru/cron/` |
+| MCP | `https://mcp.svsfinpro.ru/cron/mcp` |
+
+### MCP Tools (9 инструментов)
+
+**Task Management:**
+- `claudecron_add_task` - Создать задачу (bash или subagent)
+- `claudecron_list_tasks` - Список задач
+- `claudecron_run_task` - Запустить задачу вручную
+- `claudecron_delete_task` - Удалить задачу
+- `claudecron_toggle_task` - Включить/выключить задачу
+- `claudecron_get_history` - История выполнения
+
+**MCP Registry:**
+- `claudecron_list_mcp_servers` - Список MCP серверов
+- `claudecron_add_mcp_server` - Добавить MCP сервер
+- `claudecron_scheduler_status` - Статус планировщика
+
+### Claude Desktop Config
+
+```json
+{
+  "mcpServers": {
+    "cron": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.svsfinpro.ru/cron/mcp"]
+    }
+  }
+}
+```
+
+### Управление
+
+```bash
+# Логи
+sshpass -p 'a8ibcyC-QwPFer' ssh root@217.199.253.8 'docker logs -f cron-mcp-server'
+
+# Перезапуск
+sshpass -p 'a8ibcyC-QwPFer' ssh root@217.199.253.8 'cd /opt/cron-mcp-server && docker-compose restart'
+
+# Статус
+sshpass -p 'a8ibcyC-QwPFer' ssh root@217.199.253.8 'docker ps | grep cron'
+
+# Деплой
+cd /Users/sergeistetsko/Documents/GitHub/mcp_email && ./deploy-cron.sh
+```
+
+### Nginx Configuration
+
+Добавить в `/etc/nginx/sites-enabled/mcp.svsfinpro.ru`:
+
+```nginx
+# ClaudeCron MCP Server - Streamable HTTP (Protocol 2025-11-25)
+location /cron/ {
+    rewrite ^/cron/(.*)$ /$1 break;
+    proxy_pass http://127.0.0.1:3010;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Mcp-Session-Id $http_mcp_session_id;
+    proxy_pass_header Mcp-Session-Id;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 600s;
+    add_header Access-Control-Allow-Origin * always;
+    add_header Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "Content-Type, Authorization, Mcp-Session-Id" always;
+    add_header Access-Control-Expose-Headers "Mcp-Session-Id" always;
+}
+
+location = /cron/health {
+    proxy_pass http://127.0.0.1:3010/health;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    access_log off;
+}
+```
+
+### Тестирование
+
+```bash
+# Health
+curl https://mcp.svsfinpro.ru/cron/health
+
+# Initialize (Streamable HTTP - Protocol 2025-11-25)
+curl -X POST "https://mcp.svsfinpro.ru/cron/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}},"id":1}'
+
+# List tools
+curl -X POST "https://mcp.svsfinpro.ru/cron/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":2}'
+
+# Add bash task
+curl -X POST "https://mcp.svsfinpro.ru/cron/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"claudecron_add_task","arguments":{"name":"test-echo","task_type":"bash","schedule":"*/5 * * * *","command":"echo Hello"}},"id":3}'
+
+# List tasks
+curl -X POST "https://mcp.svsfinpro.ru/cron/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"claudecron_list_tasks","arguments":{}},"id":4}'
+```
+
+### Environment Variables
+
+```bash
+# Required
+ANTHROPIC_API_KEY=sk-ant-api03-xxx
+
+# Optional (defaults shown)
+PORT=3010
+CLAUDECRON_DB_PATH=/app/data/tasks.db
+SUBAGENT_DEFAULT_MODE=auto
+SUBAGENT_TIMEOUT=300
+SUBAGENT_MAX_TURNS=10
+CLAUDE_MODEL=claude-sonnet-4-20250514
+
+# Proxy (if needed)
+HTTP_PROXY=http://localhost:7897
+HTTPS_PROXY=http://localhost:7897
+
+# MCP Servers
+MCP_SERVER_EMAIL=https://mcp.svsfinpro.ru/email/mcp
+MCP_SERVER_BITRIX=https://mcp.svsfinpro.ru/bitrix/mcp
+```
+
+---
+
 ## Архитектура Gateway
 
 ```
@@ -254,6 +414,7 @@ Nginx (8443)
     ↓ Path-based routing
     ├─ /email/*   → localhost:3008 (Email MCP)
     ├─ /bitrix/*  → localhost:3009 (Bitrix24 MCP)
+    ├─ /cron/*    → localhost:3010 (ClaudeCron MCP)
     ├─ /its/*     → localhost:3006 (ITS 1C MCP)
     ├─ /youtube/* → localhost:3003 (YouTube Transcript)
     └─ /news/*    → localhost:3005 (News Aggregator)

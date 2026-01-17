@@ -8,7 +8,12 @@ Features (MCP 2025-11-25):
 - Progress tracking for task execution
 - SSE polling with event resumability (SEP-1699)
 - Cron scheduling, file watching, AI subagent tasks
+
+Subagent Modes:
+- Mode A: MCP Client Hub (direct API calls via httpx)
+- Mode B: Claude Code CLI (subprocess)
+- Auto: Automatic mode selection based on task parameters
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __protocol_version__ = "2025-11-25"
