@@ -1,0 +1,35 @@
+# ClaudeCron MCP Server - Docker Compose
+# Protocol: MCP 2025-11-25
+# URL: https://mcp.svsfinpro.ru/cron/mcp
+
+services:
+  cron-mcp:
+    build:
+      context: ./wrapper
+      dockerfile: Dockerfile
+    container_name: cron-mcp-server
+    # Use host network to access Mihomo proxy on localhost:7897
+    network_mode: host
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+      - CLAUDECRON_DB_PATH=/app/data/tasks.db
+      # Proxy configuration for Claude API access (bypass regional restrictions)
+      - HTTP_PROXY=http://localhost:7897
+      - HTTPS_PROXY=http://localhost:7897
+      # Anthropic API key (for subagent tasks)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

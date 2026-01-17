@@ -1,0 +1,81 @@
+# =============================================================================
+# Docker Compose for MCP Servers (Email + Bitrix24)
+# Protocol: MCP 2025-03-26 (Streamable HTTP)
+# =============================================================================
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Email MCP Server - IMAP/SMTP Email Management
+  # Port: 3008
+  # =============================================================================
+  email-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: email-mcp-server:latest
+    container_name: email-mcp-server
+    ports:
+      - "3008:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - IMAP_SERVER_PATH=/app/imap-mcp-server/dist/index.js
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Persistent storage for IMAP accounts (AES-256 encrypted)
+      - email_credentials:/root/.imap-mcp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "com.email-mcp.description=Email MCP Server with Streamable HTTP"
+      - "com.email-mcp.protocol=2025-03-26"
+    networks:
+      - mcp-network
+
+  # =============================================================================
+  # Bitrix24 MCP Server - Bitrix24 Tasks Management
+  # Port: 3009
+  # =============================================================================
+  bitrix-mcp:
+    build:
+      context: ./bitrix-mcp-server
+      dockerfile: Dockerfile
+    image: bitrix-mcp-server:latest
+    container_name: bitrix-mcp-server
+    ports:
+      - "3009:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - BITRIX_SERVER_PATH=/app/bitrix-mcp-server/dist/index.js
+      - BITRIX24_WEBHOOK_URL=${BITRIX24_WEBHOOK_URL}
+      - LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "com.bitrix-mcp.description=Bitrix24 Tasks MCP Server with Streamable HTTP"
+      - "com.bitrix-mcp.protocol=2025-03-26"
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    name: mcp-servers-network
+    driver: bridge
+
+volumes:
+  email_credentials:
+    name: email-mcp-credentials
