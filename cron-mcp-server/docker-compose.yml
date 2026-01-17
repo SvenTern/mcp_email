@@ -1,6 +1,7 @@
 # ClaudeCron MCP Server - Docker Compose
 # Protocol: MCP 2025-11-25
 # URL: https://mcp.svsfinpro.ru/cron/mcp
+# Supports: Mode A (MCP Client Hub) + Mode B (Claude Code CLI)
 
 services:
   cron-mcp:
@@ -14,13 +15,34 @@ services:
       - NODE_ENV=production
       - PORT=3010
       - CLAUDECRON_DB_PATH=/app/data/tasks.db
+
       # Proxy configuration for Claude API access (bypass regional restrictions)
       - HTTP_PROXY=http://localhost:7897
       - HTTPS_PROXY=http://localhost:7897
-      # Anthropic API key (for subagent tasks)
+
+      # Anthropic API key (required for both Mode A and Mode B)
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Subagent configuration
+      - SUBAGENT_DEFAULT_MODE=${SUBAGENT_DEFAULT_MODE:-auto}
+      - SUBAGENT_TIMEOUT=${SUBAGENT_TIMEOUT:-300}
+      - SUBAGENT_MAX_TURNS=${SUBAGENT_MAX_TURNS:-10}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-20250514}
+
+      # MCP Servers configuration loaded from /app/config/mcp-servers.yaml
+      # See mcp-servers.yaml for server list (email, bitrix, telegram, etc.)
+
+      # Notification configuration (email via Email MCP Server)
+      - NOTIFICATION_EMAIL_SERVER=${NOTIFICATION_EMAIL_SERVER:-https://mcp.svsfinpro.ru/email/mcp}
+      - NOTIFICATION_EMAIL_ACCOUNT=${NOTIFICATION_EMAIL_ACCOUNT:-}
+
     volumes:
       - ./data:/app/data
+      # Optional: Mount Claude config for Mode B persistence
+      - claude-config:/root/.claude
+      # MCP servers configuration file
+      - ./mcp-servers.yaml:/app/config/mcp-servers.yaml:ro
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3010/health"]
       interval: 30s
@@ -33,3 +55,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  claude-config:
+    # Persistent storage for Claude CLI configuration
